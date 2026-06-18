@@ -15,8 +15,9 @@ interface ChatCompletionResponse {
 
 function getAiConfig() {
   const apiKey = process.env.AI_API_KEY;
-  const baseUrl = process.env.AI_BASE_URL ?? "https://dashscope.aliyuncs.com/compatible-mode/v1";
-  const model = process.env.AI_MODEL ?? "qwen-plus";
+  // Supports any OpenAI-compatible API (Zhipu GLM, Alibaba Qwen, etc.)
+  const baseUrl = process.env.AI_BASE_URL ?? "https://open.bigmodel.cn/api/paas/v4";
+  const model = process.env.AI_MODEL ?? "glm-4-flash";
 
   if (!apiKey) {
     throw new Error("AI_API_KEY is not configured");
