@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --background: #070816;
+  --foreground: #f8fafc;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-playfair);
+}
+
+body {
+  background: radial-gradient(circle at top, #1a1440 0%, #070816 45%, #05060f 100%);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+
+.starfield {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(167, 139, 250, 0.18), transparent 30%),
+    radial-gradient(circle at 80% 10%, rgba(56, 189, 248, 0.12), transparent 25%),
+    radial-gradient(circle at 50% 80%, rgba(244, 114, 182, 0.08), transparent 35%);
+}
