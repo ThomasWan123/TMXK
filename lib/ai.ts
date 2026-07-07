@@ -58,6 +58,26 @@ async function callChatCompletion(messages: ChatMessage[]) {
   return content;
 }
 
+function normalizeTextField(value: unknown, fieldName: string): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : String(item)))
+      .filter(Boolean)
+      .map((item) => (item.startsWith("-") || item.startsWith("•") ? item : `• ${item}`))
+      .join("\n");
+  }
+
+  if (value == null) {
+    throw new Error(`AI response missing required field: ${fieldName}`);
+  }
+
+  return String(value).trim();
+}
+
 export async function generateDreamInterpretation(input: {
   title: string;
   content: string;
@@ -71,13 +91,14 @@ export async function generateDreamInterpretation(input: {
 请根据用户提供的梦境内容，输出 JSON，字段如下：
 - symbols: 梦境象征解读（中文，2-4 段）
 - emotions: 情绪与潜意识洞察（中文，2-3 段）
-- advice: 温和、积极的自我关怀建议（中文，2-3 条要点）
-- story: 可选的睡前安抚小故事（中文，150-250 字）
+- advice: 温和、积极的自我关怀建议（中文，2-3 条要点，必须是字符串，可用换行分隔多条）
+- story: 可选的睡前安抚小故事（中文，150-250 字，必须是字符串）
 
 要求：
 1. 不做医学或心理诊断，不给出确定性预言。
 2. 语气温暖、诗意、令人安心。
-3. 只返回合法 JSON，不要 markdown。`;
+3. 只返回合法 JSON，不要 markdown。
+4. symbols、emotions、advice、story 都必须是字符串，不要用数组。`;
 
   const userPrompt = `梦境标题：${input.title}
 梦境内容：${input.content}
@@ -90,20 +111,27 @@ export async function generateDreamInterpretation(input: {
     { role: "user", content: userPrompt },
   ]);
 
-  let parsed: InterpretationResult;
+  let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(raw) as InterpretationResult;
+    parsed = JSON.parse(raw) as Record<string, unknown>;
   } catch {
     throw new Error("AI response is not valid JSON");
   }
 
-  if (!parsed.symbols || !parsed.emotions || !parsed.advice) {
+  const result: InterpretationResult = {
+    symbols: normalizeTextField(parsed.symbols, "symbols"),
+    emotions: normalizeTextField(parsed.emotions, "emotions"),
+    advice: normalizeTextField(parsed.advice, "advice"),
+    story: parsed.story != null ? normalizeTextField(parsed.story, "story") : undefined,
+  };
+
+  if (!result.symbols || !result.emotions || !result.advice) {
     throw new Error("AI response missing required fields");
   }
 
   if (!input.includeStory) {
-    parsed.story = undefined;
+    result.story = undefined;
   }
 
-  return { result: parsed, model };
+  return { result, model };
 }

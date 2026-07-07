@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
+import { SiteFooter } from "@/components/site-footer";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function AppLayout({
     <div className="starfield min-h-screen">
       <AppHeader userName={session.user.name ?? session.user.email} />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+      <SiteFooter />
     </div>
   );
 }

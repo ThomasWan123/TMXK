@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Brain, BookOpen, MoonStar, Sparkles, Stars, Wand2 } from "lucide-react";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -103,10 +104,7 @@ export default function HomePage() {
           </Card>
         </section>
       </main>
-      <footer className="border-t border-white/10 py-8 text-center text-sm text-slate-500">
-        <p>Dreamweaver 不提供医学或心理治疗建议，内容仅供自我探索与娱乐参考。</p>
-        <p className="mt-2">© {new Date().getFullYear()} Dreamweaver</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

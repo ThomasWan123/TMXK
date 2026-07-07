@@ -48,17 +48,33 @@ sudo npm install -g pm2
 
 ## 2. 配置 PostgreSQL
 
+密码若含特殊字符（如 `!`、`@`），在 psql 里用**原文**；写入 `.env` 的 `DATABASE_URL` 时需 **URL 编码**（见第 4 节）。
+
 ```bash
-sudo -u postgres psql
+DB_PASS='your_strong_password'
+
+sudo -u postgres psql <<EOF
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'dreamweaver') THEN
+    CREATE USER dreamweaver WITH PASSWORD '${DB_PASS}';
+  ELSE
+    ALTER USER dreamweaver WITH PASSWORD '${DB_PASS}';
+  END IF;
+END
+\$\$;
+
+SELECT 'CREATE DATABASE dreamweaver OWNER dreamweaver'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'dreamweaver')\gexec
+
+GRANT ALL PRIVILEGES ON DATABASE dreamweaver TO dreamweaver;
+EOF
 ```
 
-在 psql 中执行：
+验证：
 
-```sql
-CREATE USER dreamweaver WITH PASSWORD 'your_strong_password';
-CREATE DATABASE dreamweaver OWNER dreamweaver;
-GRANT ALL PRIVILEGES ON DATABASE dreamweaver TO dreamweaver;
-\q
+```bash
+sudo -u postgres psql -d dreamweaver -c "SELECT current_database();"
 ```
 
 ## 3. 拉取代码
@@ -80,10 +96,50 @@ cp .env.example .env
 openssl rand -base64 32
 ```
 
-编辑 `/var/www/dreamweaver/.env`，**完整示例（智谱 AI + tmxk.fun）**：
+### 4.0 数据库密码 URL 编码（重要）
+
+`DATABASE_URL` 中密码不能写原文，特殊字符必须编码，否则会连不上库。
+
+| 原字符 | URL 编码 |
+|--------|----------|
+| `!` | `%21` |
+| `@` | `%40` |
+| `#` | `%23` |
+| `$` | `%24` |
+| `%` | `%25` |
+
+示例：密码 `your!password@` → 连接串中写 `your%21password%40`
 
 ```env
-DATABASE_URL="postgresql://dreamweaver:your_strong_password@localhost:5432/dreamweaver?schema=public"
+DATABASE_URL="postgresql://dreamweaver:your%21password%40@localhost:5432/dreamweaver?schema=public"
+```
+
+一键写入 `.env`（智谱 AI + tmxk.fun + URL 编码后的数据库密码）：
+
+```bash
+cd /var/www/dreamweaver
+
+AUTH_SECRET=$(openssl rand -base64 32)
+
+cat > .env <<'EOF'
+DATABASE_URL="postgresql://dreamweaver:your_encoded_password@localhost:5432/dreamweaver?schema=public"
+NEXTAUTH_URL="https://tmxk.fun"
+NEXTAUTH_SECRET="REPLACE_ME"
+AI_API_KEY="你的智谱 API Key"
+AI_BASE_URL="https://open.bigmodel.cn/api/paas/v4"
+AI_MODEL="glm-4-flash"
+AI_RATE_LIMIT_PER_HOUR=10
+EOF
+
+sed -i "s|REPLACE_ME|${AUTH_SECRET}|" .env
+# 再把 AI_API_KEY 改成你的智谱密钥
+nano .env
+```
+
+或手动编辑 `/var/www/dreamweaver/.env`：
+
+```env
+DATABASE_URL="postgresql://dreamweaver:your_encoded_password@localhost:5432/dreamweaver?schema=public"
 NEXTAUTH_URL="https://tmxk.fun"
 NEXTAUTH_SECRET="粘贴 openssl 生成的随机字符串"
 AI_API_KEY="你的智谱 API Key"
@@ -139,12 +195,15 @@ cd /var/www/dreamweaver
 npm ci
 npx prisma migrate deploy
 npm run build
+rm -rf .next/standalone/.next/static .next/standalone/public
+cp -R .next/static .next/standalone/.next/static
+if [ -d public ]; then cp -R public .next/standalone/public; fi
 ```
 
 ## 6. 使用 PM2 启动
 
 ```bash
-pm2 start npm --name dreamweaver -- start
+pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup
 # 若提示 sudo 命令，复制执行一次
@@ -240,7 +299,10 @@ git pull
 npm ci
 npx prisma migrate deploy
 npm run build
-pm2 restart dreamweaver
+rm -rf .next/standalone/.next/static .next/standalone/public
+cp -R .next/static .next/standalone/.next/static
+if [ -d public ]; then cp -R public .next/standalone/public; fi
+pm2 restart dreamweaver --update-env
 ```
 
 ## 11. 重置用户密码（psql）
@@ -293,7 +355,10 @@ WHERE email = 'user@example.com';
 ### 数据库连接失败
 
 - 检查 `DATABASE_URL` 用户名、密码、数据库名
+- 密码含 `!`、`@` 等字符时，必须 URL 编码（如 `your!password@` → `your%21password%40`）
+- 连接串中只能有一个 `@` 分隔密码与主机（`密码编码@localhost`），不要写成 `!@@localhost`
 - 确认 PostgreSQL 服务已启动：`sudo systemctl status postgresql`
+- 重置数据库用户密码：`sudo -u postgres psql -c "ALTER USER dreamweaver WITH PASSWORD 'your_strong_password';"`
 
 ## 13. 后续扩展建议
 
